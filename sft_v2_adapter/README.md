@@ -20,7 +20,7 @@ A LoRA adapter for [`CohereLabs/tiny-aya-global`](https://huggingface.co/CohereL
 with values taken from the document and `null` for values that are not in it.
 Built for the Lexsi Labs hackathon, Track 1 (fine-tuning and data curation), with CuratorKIT (data), AlignTune (training) and AuditKIT (evaluation).
 
-**Status: no evaluation results are reported in this card yet.** They will be added when a verified run exists. Do not assume the adapter is better than the base model until then.
+**Status: evaluated against the base model on four splits (see Evaluation). The adapter is clearly better in domain and modestly better on a new domain; it is not a solved problem on real documents.**
 
 ## Prompt format (frozen; training and evaluation use exactly this)
 System message:
@@ -79,8 +79,29 @@ Last logged training loss about 0.003 and mean token accuracy 0.9987 **on the tr
 Files in this repo: `adapter_model.safetensors`, `adapter_config.json`, `train_config.json`, `lexsi_provenance.json` (AlignTune provenance record), `train_log.txt`.
 
 ## Evaluation
-Not reported yet. Planned: base model against this adapter on four splits (Sujal's `val` and `test`, and FieldBench `test_b` for unseen domains and `test_c` for real documents), with AuditKIT, greedy decoding and a 1280-token cap; metrics parse rate, schema validity, field F1, document exact match, null accuracy and hallucination rate.
-Known caveat for any in-domain number: about 78 to 81% of the answer string values in `val` and `test` also occur in the training answers, so those two splits flatter the model; judge generalisation on FieldBench.
+Base model against this adapter, on four splits, with AuditKIT 1.1.6: Sujal's `val` (120 documents) and `test` (120), and FieldBench `test_b` (415, a domain not in training) and `test_c` (143 real receipts). One Kaggle T4, fp16, 4-bit base, greedy decoding, 1280 new tokens, dataset revision pinned (`sujalgawas/aya-json-sft-dataset @ e26e691b`). All metrics were recomputed from the raw outputs by a verification script (8 of 8 result files match, all 252 LoRA B matrices non-zero). Raw outputs and logs: `results/` in this repo.
+
+| split | system | parse_ok | schema_valid | field_f1 | doc_exact | null_acc | hallucination_rate (adjusted) |
+|---|---|---|---|---|---|---|---|
+| val | base | 1.000 | 0.958 | 0.971 | 0.608 | 0.955 | 0.004 |
+| val | **this adapter** | 1.000 | 1.000 | 0.998 | 0.975 | 1.000 | 0.000 |
+| test | base | 1.000 | 0.925 | 0.962 | 0.533 | 0.939 | 0.004 |
+| test | **this adapter** | 1.000 | 1.000 | 0.997 | 0.958 | 1.000 | 0.000 |
+| test_b | base | 1.000 | 0.827 | 0.795 | 0.222 | 0.838 | 0.049 |
+| test_b | **this adapter** | 0.983 | 0.875 | 0.815 | 0.263 | 0.873 | 0.045 |
+| test_c | base | 0.993 | 0.944 | 0.447 | 0.000 | 0.920 | 0.041 |
+| test_c | **this adapter** | 0.993 | 0.965 | 0.494 | 0.000 | 0.962 | 0.027 |
+
+Paired differences (same documents, bootstrap 95% interval; "significant" means the interval excludes 0):
+- `val` and `test`: document exact match +0.367 and +0.425, significant.
+- `test_b` (new domain): field F1 +0.020 [+0.002, +0.038] and null accuracy +0.036 are significant. Document exact match +0.041 [-0.002, +0.084] is **not** significant (McNemar p = 0.075). The parse rate fell from 1.000 to 0.983, a significant drop (broken JSON on some documents).
+- `test_c` (real receipts): field F1 +0.047 [+0.022, +0.073] is significant. **No system gets any document fully correct** (document exact match 0.000 for both).
+- The unadjusted hallucination rate on `test_b` is higher than the base model's (0.253 against 0.201); the adjusted rate is not different. We did not investigate this further.
+
+Caveats:
+- About 78 to 81% of the answer string values in `val` and `test` also occur in the training answers, so those two splits flatter the model. Judge generalisation on `test_b` and `test_c`.
+- Speed on the T4: 0.04 documents per second for the adapter, against 0.13 to 0.30 for the base model.
+- Scores for the base model differ a little between machines (a different adapter run on another GPU gave 0.550 instead of 0.608 on `val`). Compare systems only inside one run.
 
 ## Limitations
 - The training documents are synthetic and template-like; real documents (OCR noise, long text, tables) are much harder, and the adapter has not been shown to handle them.
