@@ -1,0 +1,21 @@
+# DPO pairs build statistics
+
+- pairs: rule-based: 1200
+-   kind date_unnormalised: 216
+-   kind enum_violation: 96
+-   kind wrong_type: 48
+-   kind invented_value: 156
+-   kind wrong_value: 120
+-   kind over_null: 120
+-   kind missing_key: 180
+-   kind truncated: 36
+-   kind schema_echo: 96
+-   kind extra_key: 96
+-   kind fenced: 36
+- curatorkit: in: 1200
+- curatorkit: out: 1199
+- curatorkit: rejected: {"secret_detected:Hex High Entropy String": 1}
+- curatorkit: near-duplicates removed: None
+- dropped: over the length cap: 37
+- final pairs: 1162
+- final distinct prompts: 925

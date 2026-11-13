@@ -110,6 +110,7 @@ Metric definitions must be implemented once, in one shared place (a module, or a
 - Do not install large dependencies, upgrade pinned versions, or change training hyperparameters/prompt format without saying so.
 - Never fabricate results, citations or metrics. If a number was not produced by a run you can point to, do not write it down. If you cite a paper, only cite one you actually verified exists.
 - Do not commit secrets (HF tokens, API keys). Use environment variables.
+- You may read official Lexsi sources (docs sites and the Lexsi-Labs GitHub repos) whenever needed, and should do so rather than guess.
 - Read the toolkit docs before using them. Do not guess APIs for CuratorKIT, AlignTune or AuditKIT:
   - CuratorKIT: https://curatorkit.lexsi.ai/latest/ and https://github.com/Lexsi-Labs/CuratorKIT
   - AlignTune: https://aligntune.lexsi.ai and https://github.com/Lexsi-Labs/aligntune
