@@ -7,4 +7,6 @@ requires-python = ">=3.11"
 dependencies = [
     "huggingface>=0.0.1",
     "huggingface-hub>=2.4.0",
+    "kaggle>=2.2.5",
+    "six>=1.17.0",
 ]
