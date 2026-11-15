@@ -103,6 +103,13 @@ Caveats:
 - Speed on the T4: 0.04 documents per second for the adapter, against 0.13 to 0.30 for the base model.
 - Scores for the base model differ a little between machines (a different adapter run on another GPU gave 0.550 instead of 0.608 on `val`). Compare systems only inside one run.
 
+## Follow-up experiments (Nov 15, 2026)
+Tested on top of this adapter; none of them is a reason to use another model.
+- **DPO** (1,415 preference pairs, 247 of them this model's own mistakes): no measurable gain. Against the merged SFT v2 model that DPO started from, `test_b` doc_exact was +0.005 [-0.010, +0.019] (p = 0.75) and field F1 -0.002. The DPO adapter is a documented negative result: [`monson2002/tiny-aya-sft-v2-dpo-adapter`](https://huggingface.co/monson2002/tiny-aya-sft-v2-dpo-adapter).
+- **Do not merge this adapter into the base weights.** The merged model, loaded in 4 bit, is significantly worse than this adapter on the 4-bit base on the new domain: `test_b` doc_exact -0.036 [-0.058, -0.017] (McNemar p = 0.0007), field F1 -0.027 [-0.043, -0.013] (paired, same machine). Use it as an adapter on the 4-bit base, as shown above.
+- An earlier GRPO adapter (not this one) matched the base model within about one point on every split.
+- Write-up, code and all result files: https://github.com/Monson2002/lexsi-hackathon (`docs/WRITEUP.md`, `results/`).
+
 ## Limitations
 - The training documents are synthetic and template-like; real documents (OCR noise, long text, tables) are much harder, and the adapter has not been shown to handle them.
 - The model can echo schema fragments, drop required keys or break the schema on documents unlike its training data; always validate its output.
