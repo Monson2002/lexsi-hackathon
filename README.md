@@ -2,7 +2,7 @@
 
 Fine-tuning a small Aya model (Tiny Aya Global, 3.35B) for **schema-conditioned structured extraction**: the input is a document plus a JSON Schema, the output is one JSON object that follows the schema, with `null` for values that are not in the document.
 Lexsi Labs hackathon, Track 1 (fine-tuning and data curation). Toolkits chained: CuratorKIT (data), AlignTune (training), AuditKIT (evaluation). Deadline: Nov 14, 2026, end of day (AoE).
-A beginner-friendly walkthrough of the theory and the full history is in [`docs/PROJECT_EXPLAINER.html`](docs/PROJECT_EXPLAINER.html). The DPO plan is in [`docs/DPO_PLAN.md`](docs/DPO_PLAN.md).
+A beginner-friendly walkthrough of the theory and the full history is in [`docs/PROJECT_EXPLAINER.html`](docs/PROJECT_EXPLAINER.html). The DPO plan is in [`docs/DPO_PLAN.md`](docs/DPO_PLAN.md). The write-up is [`docs/WRITEUP.md`](docs/WRITEUP.md) and the abstract is [`docs/ABSTRACT.md`](docs/ABSTRACT.md).
 
 ## Results so far (status on Nov 15, 2026)
 
