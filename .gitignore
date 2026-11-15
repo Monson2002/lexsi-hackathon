@@ -218,3 +218,27 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# --- hackathon: keep out of GitHub (large, regenerable, or private) ---
+# Raw model outputs: large; summary tables live in results/. Upload raw logs to Hugging Face instead.
+op/
+# Handoff bundles and instructions for teammates, stub entry point
+*.zip
+TEMP_*.md
+README_for_sft_v2_handoff.md
+main.py
+# Original dataset notebook and team knowledge base (not for the public repo)
+lexis-labs-hackathon.ipynb
+knowledge-base/
+# Generated data: goes to Hugging Face datasets. Small STATS files and the pinned revision stay tracked.
+data/aya-json-sft-dataset/*
+!data/aya-json-sft-dataset/REVISION.txt
+data/sft_v2/*
+!data/sft_v2/STATS.md
+data/dpo/*
+!data/dpo/STATS_dpo.md
+# Adapter weights: go to Hugging Face models
+sft_v2_adapter/adapter/
+# Training outputs and merged models
+merged_sft_v2/
+dpo_adapter/

@@ -1,0 +1,20 @@
+base       test    n=120
+base       test_b  n=415
+base       test_c  n=143
+base       val     n=120
+sft        test    n=120
+sft        test_b  n=415
+sft        test_c  n=143
+  WARN sft_test_c.json: 38 outputs start a JSON object and never close it (cap too low, or the model did not stop)
+sft_v2     test    n=120
+sft_v2     test_b  n=415
+  WARN sft_v2_test_b.json: 1 outputs start a JSON object and never close it (cap too low, or the model did not stop)
+sft_v2     test_c  n=143
+  WARN sft_v2_test_c.json: 1 outputs start a JSON object and never close it (cap too low, or the model did not stop)
+sft_v2     val     n=120
+sft        val     n=120
+
+adapter sft_v2_adapter/adapter: 252 of 252 LoRA B matrices are non-zero
+
+12 result files checked: 0 FAIL, 3 WARN
+VERIFIED

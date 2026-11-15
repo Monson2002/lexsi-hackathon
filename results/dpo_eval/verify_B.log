@@ -1,0 +1,8 @@
+sft_v2_dpo test    n=120
+sft_v2_dpo val     n=120
+sft_v2_hf  test    n=120
+sft_v2_hf  val     n=120
+
+
+4 result files checked: 0 FAIL, 0 WARN
+VERIFIED

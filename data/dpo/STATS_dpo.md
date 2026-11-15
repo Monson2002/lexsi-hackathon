@@ -1,0 +1,25 @@
+# DPO pairs build statistics
+
+- onpolicy: answer already correct (no pair): 1804
+- pairs: on-policy: 277
+- pairs: rule-based: 1200
+-   kind onpolicy: 277
+-   kind date_unnormalised: 36
+-   kind enum_violation: 36
+-   kind wrong_type: 144
+-   kind invented_value: 120
+-   kind wrong_value: 144
+-   kind over_null: 288
+-   kind missing_key: 144
+-   kind truncated: 96
+-   kind schema_echo: 24
+-   kind extra_key: 144
+-   kind fenced: 24
+- curatorkit: in: 1477
+- curatorkit: out: 1475
+- curatorkit: rejected: {"secret_detected:Hex High Entropy String": 1}
+- curatorkit: near-duplicates removed: None
+- note: tokenizer unavailable (ModuleNotFoundError); lengths estimated at 3.2 chars/token
+- dropped: over the length cap: 60
+- final pairs: 1415
+- final distinct prompts: 1059

@@ -1,0 +1,109 @@
+# Paired comparisons recomputed locally from James's raw outputs (A = first system named, B = second; B - A)
+
+## Stage A, success rule: sft_v2_hf (A) vs sft_v2_dpo (B)
+
+=== test_b: sft_v2_dpo vs sft_v2_hf (B - A), 415 paired documents ===
+metric                         A       B      B-A   95% interval
+parse_ok                   0.976   0.954   -0.022   [-0.039, -0.005]   *
+schema_valid               0.858   0.851   -0.007   [-0.039, +0.024]
+field_f1                   0.804   0.774   -0.029   [-0.045, -0.015]   *
+doc_exact                  0.258   0.227   -0.031   [-0.055, -0.007]   *
+null_acc                   0.866   0.838   -0.028   [-0.047, -0.010]   *
+hallucination_rate_adj     0.044   0.040   -0.004   [-0.008, +0.001]
+doc_exact: only A right 19, only B right 6, McNemar exact p = 0.0146   (* = interval excludes 0)
+
+=== test_c: sft_v2_dpo vs sft_v2_hf (B - A), 143 paired documents ===
+metric                         A       B      B-A   95% interval
+parse_ok                   0.993   1.000   +0.007   [+0.000, +0.021]
+schema_valid               0.972   0.951   -0.021   [-0.049, +0.007]
+field_f1                   0.496   0.491   -0.005   [-0.017, +0.010]
+doc_exact                  0.000   0.000   +0.000   [+0.000, +0.000]
+null_acc                   0.962   0.958   -0.003   [-0.023, +0.017]
+hallucination_rate_adj     0.026   0.024   -0.002   [-0.009, +0.004]
+doc_exact: only A right 0, only B right 0, McNemar exact p = 1.0000   (* = interval excludes 0)
+
+=== DPO success rule (docs/DPO_PLAN.md section 1) ===
+  FAIL    test_b: doc_exact gain, interval above 0
+  FAIL    test_b: field_f1 gain, interval above 0
+  FAIL    test_c: field_f1 gain, interval above 0
+  PASS    test_c: doc_exact not lower
+  MISSING val: no significant drop
+  MISSING test: no significant drop
+
+VERDICT: no reliable gain for sft_v2_dpo: report it as such and ship sft_v2_hf
+
+## Stage B: sft_v2_hf (A) vs sft_v2_dpo (B)
+
+=== val: sft_v2_dpo vs sft_v2_hf (B - A), 120 paired documents ===
+metric                         A       B      B-A   95% interval
+parse_ok                   1.000   1.000   +0.000   [+0.000, +0.000]
+schema_valid               1.000   1.000   +0.000   [+0.000, +0.000]
+field_f1                   0.998   0.997   -0.001   [-0.002, +0.000]
+doc_exact                  0.975   0.967   -0.008   [-0.025, +0.000]
+null_acc                   1.000   1.000   +0.000   [+0.000, +0.000]
+hallucination_rate_adj     0.000   0.000   +0.000   [+0.000, +0.000]
+doc_exact: only A right 1, only B right 0, McNemar exact p = 1.0000   (* = interval excludes 0)
+
+=== test: sft_v2_dpo vs sft_v2_hf (B - A), 120 paired documents ===
+metric                         A       B      B-A   95% interval
+parse_ok                   1.000   1.000   +0.000   [+0.000, +0.000]
+schema_valid               1.000   1.000   +0.000   [+0.000, +0.000]
+field_f1                   0.997   0.998   +0.001   [+0.000, +0.003]
+doc_exact                  0.958   0.967   +0.008   [+0.000, +0.025]
+null_acc                   1.000   1.000   +0.000   [+0.000, +0.000]
+hallucination_rate_adj     0.000   0.000   +0.000   [+0.000, +0.000]
+doc_exact: only A right 0, only B right 1, McNemar exact p = 1.0000   (* = interval excludes 0)
+
+=== DPO success rule (docs/DPO_PLAN.md section 1) ===
+  MISSING test_b: doc_exact and field_f1 gain
+  MISSING test_c: field_f1 gain
+  PASS    val: no significant drop (found: none)
+  PASS    val: parse_ok and schema_valid fall by no more than 1 point
+  PASS    test: no significant drop (found: none)
+  PASS    test: parse_ok and schema_valid fall by no more than 1 point
+
+VERDICT: no reliable gain for sft_v2_dpo: report it as such and ship sft_v2_hf
+
+## Control: DPO (B) vs merged SFT v2 without DPO (A), the fair test of DPO itself
+
+=== test_b: sft_v2_dpo vs sft_v2_merged (B - A), 415 paired documents ===
+metric                         A       B      B-A   95% interval
+parse_ok                   0.954   0.954   +0.000   [-0.014, +0.014]
+schema_valid               0.843   0.851   +0.007   [-0.017, +0.031]
+field_f1                   0.777   0.774   -0.002   [-0.015, +0.011]
+doc_exact                  0.222   0.227   +0.005   [-0.010, +0.019]
+null_acc                   0.845   0.838   -0.007   [-0.023, +0.010]
+hallucination_rate_adj     0.044   0.040   -0.004   [-0.009, -0.000]   *
+doc_exact: only A right 4, only B right 6, McNemar exact p = 0.7539   (* = interval excludes 0)
+
+=== test_c: sft_v2_dpo vs sft_v2_merged (B - A), 143 paired documents ===
+metric                         A       B      B-A   95% interval
+parse_ok                   0.993   1.000   +0.007   [+0.000, +0.021]
+schema_valid               0.965   0.951   -0.014   [-0.049, +0.021]
+field_f1                   0.491   0.491   -0.000   [-0.010, +0.011]
+doc_exact                  0.000   0.000   +0.000   [+0.000, +0.000]
+null_acc                   0.956   0.958   +0.002   [-0.010, +0.019]
+hallucination_rate_adj     0.019   0.024   +0.005   [+0.000, +0.012]   *
+doc_exact: only A right 0, only B right 0, McNemar exact p = 1.0000   (* = interval excludes 0)
+
+## Cost of merging: merged SFT v2 (B) vs the adapter on the 4-bit base (A)
+
+=== test_b: sft_v2_merged vs sft_v2_hf (B - A), 415 paired documents ===
+metric                         A       B      B-A   95% interval
+parse_ok                   0.976   0.954   -0.022   [-0.039, -0.005]   *
+schema_valid               0.858   0.843   -0.014   [-0.041, +0.012]
+field_f1                   0.804   0.777   -0.027   [-0.043, -0.013]   *
+doc_exact                  0.258   0.222   -0.036   [-0.058, -0.017]   *
+null_acc                   0.866   0.845   -0.021   [-0.039, -0.004]   *
+hallucination_rate_adj     0.044   0.044   +0.001   [-0.003, +0.004]
+doc_exact: only A right 17, only B right 2, McNemar exact p = 0.0007   (* = interval excludes 0)
+
+=== test_c: sft_v2_merged vs sft_v2_hf (B - A), 143 paired documents ===
+metric                         A       B      B-A   95% interval
+parse_ok                   0.993   0.993   +0.000   [-0.021, +0.021]
+schema_valid               0.972   0.965   -0.007   [-0.049, +0.035]
+field_f1                   0.496   0.491   -0.005   [-0.018, +0.011]
+doc_exact                  0.000   0.000   +0.000   [+0.000, +0.000]
+null_acc                   0.962   0.956   -0.005   [-0.028, +0.017]
+hallucination_rate_adj     0.026   0.019   -0.007   [-0.017, -0.000]   *
+doc_exact: only A right 0, only B right 0, McNemar exact p = 1.0000   (* = interval excludes 0)

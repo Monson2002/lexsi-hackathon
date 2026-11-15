@@ -1,0 +1,10 @@
+sft_v2_dpo test_b  n=415
+  WARN sft_v2_dpo_test_b.json: 1 outputs start a JSON object and never close it (cap too low, or the model did not stop)
+sft_v2_dpo test_c  n=143
+sft_v2_hf  test_b  n=415
+  WARN sft_v2_hf_test_b.json: 1 outputs start a JSON object and never close it (cap too low, or the model did not stop)
+sft_v2_hf  test_c  n=143
+
+
+4 result files checked: 0 FAIL, 2 WARN
+VERIFIED

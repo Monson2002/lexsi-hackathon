@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Schema Extraction Project Explainer</title>
+<style>
+:root{--bg:#fafaf8;--fg:#1d1f23;--mut:#5b616b;--line:#dcdcd6;--card:#fff;--acc:#1b5fb5;--warn:#9a5b00;--warnbg:#fff4de;--ok:#1e6b3a;--okbg:#e4f4ea;--code:#f0f0ec}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#16181c;--fg:#e8e8e4;--mut:#a0a6b0;--line:#33373e;--card:#1e2126;--acc:#7db3f5;--warn:#f0b45a;--warnbg:#33290f;--ok:#7fd49a;--okbg:#14301f;--code:#262a30}}
+:root[data-theme="dark"]{--bg:#16181c;--fg:#e8e8e4;--mut:#a0a6b0;--line:#33373e;--card:#1e2126;--acc:#7db3f5;--warn:#f0b45a;--warnbg:#33290f;--ok:#7fd49a;--okbg:#14301f;--code:#262a30}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:17px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:50rem;margin:0 auto;padding:2rem 16px 4rem}
+h1{font-size:2rem;line-height:1.2;margin:.2em 0}
+h2{font-size:1.45rem;margin:2.6em 0 .5em;padding-top:.6em;border-top:1px solid var(--line)}
+h3{font-size:1.1rem;margin:1.8em 0 .3em}
+p,li{max-width:46rem}
+.lead{color:var(--mut);font-size:1.05rem}
+nav{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:.8rem 1.2rem;margin:1.5rem 0}
+nav ol{margin:.3rem 0 0;padding-left:1.3rem}
+a{color:var(--acc)}
+code{background:var(--code);padding:.1em .35em;border-radius:4px;font-size:.92em}
+.box{border-radius:10px;padding:.8rem 1.1rem;margin:1.2rem 0;border:1px solid var(--line);background:var(--card)}
+.note{background:var(--warnbg);border-color:var(--warn)}
+.good{background:var(--okbg);border-color:var(--ok)}
+.box p:first-child{margin-top:0}.box p:last-child{margin-bottom:0}
+.tablewrap{overflow-x:auto;margin:1rem 0}
+table{border-collapse:collapse;width:100%;min-width:28rem;font-size:.95rem}
+th,td{border:1px solid var(--line);padding:.45rem .6rem;text-align:left;vertical-align:top}
+th{background:var(--code)}
+.flow{display:flex;flex-wrap:wrap;gap:.4rem;align-items:center;margin:1rem 0}
+.flow span{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:.35rem .7rem;font-size:.92rem}
+.flow b{color:var(--mut)}
+pre{background:var(--code);padding:.8rem 1rem;border-radius:8px;overflow-x:auto;font-size:.88rem}
+.tag{display:inline-block;font-size:.78rem;padding:.05rem .5rem;border-radius:99px;border:1px solid var(--line);color:var(--mut)}
+footer{margin-top:3rem;color:var(--mut);font-size:.9rem}
+</style>
+</head>
+<body>
+<main>
+
+<h1>Schema Extraction Project: Full Explainer</h1>
+<p class="lead">This document explains what our team built, what we tried, and what we do now. It starts with the basic theory. A reader with no background in machine learning can follow it from top to bottom.</p>
+
+<div class="box note">
+<p><strong>Status on Nov 13, 2026.</strong> The deadline is Nov 14, 2026, end of day (AoE) ie. 16 Nov, 5:30pm. The SFT v2 adapter is trained and public on Hugging Face. The DPO stage is in progress. No DPO result exists yet.</p>
+<p>Each number in this document comes from a run that we can point to. Where a result does not exist, this document says so.</p>
+</div>
+
+<nav>
+<strong>Contents</strong>
+<ol>
+<li><a href="#goal">The goal in plain words</a></li>
+<li><a href="#theory">Theory you need first</a></li>
+<li><a href="#tools">The three toolkits</a></li>
+<li><a href="#history">What we tried, in order</a></li>
+<li><a href="#current">The current approach</a></li>
+<li><a href="#results">Results so far</a></li>
+<li><a href="#limits">Limits and open questions</a></li>
+<li><a href="#glossary">Glossary</a></li>
+</ol>
+</nav>
+
+<h2 id="goal">1. The goal in plain words</h2>
+<p>We build a small language model that reads a document and fills in a form. The form is a JSON Schema. The answer is one JSON object.</p>
+<p>Here is an example. The document is a receipt. The schema asks for the shop name, the date, and the total. The model must return the three values in the correct format. If the receipt has no value for a field, the model must write <code>null</code>.</p>
+<div class="flow"><span>Document</span><b>+</b><span>JSON Schema</span><b>&rarr;</b><span>Model</span><b>&rarr;</b><span>One JSON object</span></div>
+<p>The model must learn the general skill of "follow any schema". It must not learn one fixed form. We prove this with schemas and a domain that the model never saw in training.</p>
+
+<h3>The rules of the hackathon</h3>
+<ul>
+<li>This is the Lexsi Labs hackathon, Track 1: fine-tuning and data curation.</li>
+<li>The model that we fine-tune must be a Cohere Labs open-weights model. We use Tiny Aya Global (3.35 billion parameters).</li>
+<li>Other models are allowed only in a supporting role. Examples are a teacher, a judge, or a price comparison.</li>
+<li>We must chain at least two of three toolkits: CuratorKIT, AlignTune, and AuditKIT. We use all three.</li>
+<li>All data must be synthetic or public. We must not use real personal data.</li>
+<li>Everything must be public on Hugging Face and on GitHub.</li>
+</ul>
+
+<h2 id="theory">2. Theory you need first</h2>
+
+<h3>2.1 Language model and token</h3>
+<p>A language model is a program that predicts the next piece of text. The pieces are called tokens. A token is a word or a part of a word. The model reads the tokens of the prompt. Then it writes one new token at a time until it decides to stop.</p>
+<p>Our prompt is long. The schema and the document together are about 1,200 tokens or more. The answer can have up to 1,280 tokens.</p>
+
+<h3>2.2 Parameters and fine-tuning</h3>
+<p>Parameters are the numbers inside the model. They store what the model knows. Tiny Aya Global has 3.35 billion of them. Fine-tuning means that we change these numbers a little with new examples. The model then does a new task better.</p>
+
+<h3>2.3 LoRA, quantization, and QLoRA</h3>
+<p>To change all 3.35 billion numbers needs a large GPU. We do not have one. LoRA is a trick that solves this. We freeze the original numbers. We add small extra matrices (an "adapter") and train only these.</p>
+<p>Our adapter has 60,456,960 trainable parameters. This is about 1.8 percent of the model. The adapter file is about 242 MB.</p>
+<p>Quantization stores the frozen numbers with fewer bits. We use 4 bits (the NF4 format). This makes the model small enough for a free Kaggle T4 GPU. LoRA on a 4-bit model is called QLoRA.</p>
+
+<h3>2.4 JSON and JSON Schema</h3>
+<p>JSON is a text format for data. It has objects (key and value pairs), arrays (lists), strings, numbers, true, false, and null. A JSON Schema is a JSON document that describes what a valid JSON object looks like. It states the keys, the types, the allowed values (enums), and which keys are required.</p>
+<pre>{ "type": "object",
+  "properties": { "date":  {"type": ["string","null"], "format": "date"},
+                  "total": {"type": ["number","null"]} },
+  "required": ["date", "total"] }</pre>
+<p>In our training data, every key is required and every value can be <code>null</code>. A missing value is an explicit <code>null</code>. This makes "missing field" a clear skill that we can measure.</p>
+
+<h3>2.5 The output rules the model must follow</h3>
+<ul>
+<li>The output is valid JSON and it follows the schema.</li>
+<li>Each value comes from the document. The model must never invent a value.</li>
+<li>If the document does not contain a value, the model writes <code>null</code>.</li>
+<li>The model changes a value only when the schema asks for it. Example: a date in <code>YYYY-MM-DD</code> format.</li>
+</ul>
+
+<h3>2.6 The frozen prompt format</h3>
+<p>Training and evaluation must use exactly the same prompt. If the format changes, all data and all results become invalid. The format is frozen. It has a system message and a user message.</p>
+<pre>SYSTEM: You extract structured data. Return only a single JSON object that
+conforms to the given JSON Schema. Use null for values that are not present
+in the document. Do not invent values. Do not add explanations or markdown fences.
+
+USER:   &lt;JSON_SCHEMA&gt; ...schema... &lt;/JSON_SCHEMA&gt;
+
+        &lt;DOCUMENT&gt; ...document text... &lt;/DOCUMENT&gt;</pre>
+
+<h3>2.7 SFT: supervised fine-tuning</h3>
+<p>In SFT we show the model many pairs of (prompt, correct answer). The model learns to copy the correct answer. We compute the loss only on the answer tokens. The prompt tokens do not count. In our data, the answer is about 14 percent of the tokens.</p>
+<p>SFT is simple and it works well. Its limit is that the model sees only correct answers. It never learns what a wrong answer looks like.</p>
+
+<h3>2.8 DPO: direct preference optimization</h3>
+<p>In DPO we show the model pairs of answers for the same prompt. One answer is "chosen" (good). One answer is "rejected" (bad). The model learns to make the good answer more likely and the bad answer less likely.</p>
+<p>DPO uses a reference model. The reference is the model before DPO. In our case the reference is SFT v2. The parameter beta controls how far the new model can move from the reference.</p>
+<div class="box">
+<p><strong>A check that proves the setup is correct.</strong> At step 0 the new model and the reference are the same. The DPO loss must then be ln 2, which is 0.693. If the first loss is different, the run is wrong and we must not use it.</p>
+</div>
+
+<h3>2.9 Reinforcement learning (RL) and GRPO</h3>
+<p>In RL the model writes an answer. A reward function gives a score. The model learns to get higher scores. GRPO is one RL method. We tried a GRPO adapter early in the project.</p>
+<p>RL has a known danger: reward hacking. The model finds a trick to get a high score without doing the task.</p>
+<p>For our task, the trick is to return all <code>null</code>. This output is always valid against the schema. It is sometimes correct. A bad reward makes the model use this trick. This is why RL is optional for us.</p>
+
+<h3>2.10 On-policy and rule-based data</h3>
+<p>"On-policy" data comes from the model itself. We let the SFT v2 model answer new prompts. Its wrong answers become the rejected side of a pair. These pairs show the real mistakes of the model.</p>
+<p>"Rule-based" data is made by code. We take the correct answer and corrupt it on purpose. Examples are a deleted value, a wrong type, or a wrong date format. This is cheap. Its risk is that the model can never make these mistakes. We use both kinds.</p>
+
+<h3>2.11 Data splits and leakage</h3>
+<table>
+<tr><th>Split</th><th>What it contains</th><th>What it tests</th></tr>
+<tr><td><code>train</code></td><td>Training schemas and documents</td><td>Not used for scores</td></tr>
+<tr><td><code>val</code></td><td>New documents, schemas that the model saw</td><td>Does the model work on new documents?</td></tr>
+<tr><td><code>test</code> (also called <code>test_a</code>)</td><td>New schemas, domains that the model saw</td><td>Does the model work on new schemas?</td></tr>
+<tr><td><code>test_b</code></td><td>A whole new domain (FieldBench)</td><td>Does the model generalize to a new domain?</td></tr>
+<tr><td><code>test_c</code></td><td>Real public documents (receipts)</td><td>Does the model work on real, messy text?</td></tr>
+</table>
+<p>Leakage means that a schema or a near copy of it appears in two splits. Leakage makes the scores look better than the truth. We split at the schema level before we generate or remove duplicates. We run a leakage check after each data change.</p>
+
+<h3>2.12 Metrics</h3>
+<table>
+<tr><th>Metric</th><th>Meaning</th></tr>
+<tr><td>parse_ok</td><td>The output is valid JSON.</td></tr>
+<tr><td>schema_valid</td><td>The output is valid JSON and it follows the schema.</td></tr>
+<tr><td>field_f1</td><td>A score for each field value, compared with the correct answer. Correct nulls count.</td></tr>
+<tr><td>doc_exact</td><td>All fields in the document are correct.</td></tr>
+<tr><td>null_acc</td><td>The model handles missing fields correctly.</td></tr>
+<tr><td>hallucination_rate</td><td>The share of values that the document does not support.</td></tr>
+</table>
+<div class="box note">
+<p><strong>Why schema validity is not our main result.</strong> A technique called constrained decoding forces any model to write valid JSON. Validity is then near 100 percent for every model. It does not show that the values are correct. Our main results are field_f1 and doc_exact, and the gap between val and the test sets.</p>
+</div>
+
+<h3>2.13 Greedy decoding and sampling</h3>
+<p>Greedy decoding means that the model always picks the most likely next token. It gives one answer for each prompt. We use it for evaluation, so results are repeatable. Sampling picks tokens at random from the likely ones. We use sampling at temperature 0.7 to collect the varied mistakes of the model for DPO.</p>
+
+<h3>2.14 Paired bootstrap and McNemar test</h3>
+<p>A small difference between two models can be luck. We test this. The paired bootstrap resamples the test documents many times and gives a confidence interval for the difference. If the interval is fully above 0, the improvement is real. The McNemar test does a similar check for documents where one model is right and the other is wrong.</p>
+
+<h2 id="tools">3. The three toolkits</h2>
+<p>The hackathon requires toolkits from Lexsi Labs. We read their documentation and we did not guess their interfaces.</p>
+<table>
+<tr><th>Toolkit</th><th>Job</th><th>How we use it</th></tr>
+<tr><td><strong>CuratorKIT</strong></td><td>Data curation</td><td>Gates for schema and length, exact and near-duplicate removal (MinHash), and a secrets check. Our scripts write the final files from the ids that survive.</td></tr>
+<tr><td><strong>AlignTune</strong></td><td>Training</td><td>QLoRA SFT with the TRL backend. The DPO stage also uses it.</td></tr>
+<tr><td><strong>AuditKIT</strong></td><td>Evaluation</td><td>Runs the evaluation. We add our own metrics as AuditKIT metrics. Its built-in metrics have the prefix <code>ak_</code>.</td></tr>
+</table>
+<p>All metric definitions are in one place (<code>eval.py</code>). The training reward, the evaluation, and the notebooks use the same definitions. This makes the numbers match across the write-up.</p>
+
+<h2 id="history">4. What we tried, in order</h2>
+
+<h3>4.1 First baseline: base model, SFT, and GRPO</h3>
+<p>Sujal built the first dataset and notebook. We built an evaluation harness and compared the base model, an early SFT adapter, and a GRPO adapter. We evaluated on the <code>val</code> and <code>test</code> splits.</p>
+<p>The first results had problems that we had to find and fix:</p>
+<ul>
+<li><strong>Identical numbers for different models.</strong> AuditKIT keeps a cache of runs. The key was the model name. Different adapters with the same name gave the cached result. Now the model name always includes the token limit and the precision.</li>
+<li><strong>An adapter with no training.</strong> We found that one early adapter had all-zero LoRA B matrices. This means that it did not change the model at all. We now check that the LoRA weights are not zero.</li>
+<li><strong>Answers that were cut off.</strong> A limit of 384 new tokens cut long answers. We tested 1,280, 1,536, and 2,048 tokens. Base and GRPO gave identical outputs for these three. We use 1,280.</li>
+<li><strong>Silent wrong flags.</strong> The script ignored unknown command-line flags. It now stops with an error.</li>
+</ul>
+
+<h3>4.2 Harder test sets: FieldBench</h3>
+<p>The first test sets used the same six document templates as training. They flatter the model. We added FieldBench as <code>test_b</code> (a new domain, 415 documents) and <code>test_c</code> (real receipts, 143 documents). These sets show the real generalization.</p>
+<div class="box note">
+<p><strong>The first big finding.</strong> The early SFT adapter scored 0.983 document-exact on <code>val</code>. On <code>test_b</code> it scored 0.010. It memorized the templates. This is the problem that the rest of the project tries to fix.</p>
+</div>
+
+<h3>4.3 Diagnosis: why did the model fail?</h3>
+<p>We made an error taxonomy. It counts the type of each failure. The main finding for the base model on <code>test_b</code> was this: 82 of 100 documents had a date that the model did not normalize to <code>YYYY-MM-DD</code>. The early SFT data had dates in the same format as the answer. The model never learned to convert dates.</p>
+<p>The other weaknesses were fenced answers (markdown code blocks around the JSON), numbers with separators, and enum labels that the document wrote in another way.</p>
+
+<h3>4.4 Better data for SFT v2</h3>
+<p>We rebuilt the training data. The plan was diversity, not volume. Three sources went into one pool:</p>
+<table>
+<tr><th>Source</th><th>Rows</th><th>Notes</th></tr>
+<tr><td>Sujal's dataset, augmented by our code</td><td>1,433</td><td>Dates written in other ways. Amounts with separators. Enum labels reworded. One to three fields removed from the text, with answer <code>null</code>.</td></tr>
+<tr><td>Schema-first rows from the structure of real schemas (JSONSchemaBench)</td><td>1,176</td><td>Field names, nesting, enums, and <code>$defs</code> come from real schemas. Our code generates the values and the documents. No LLM is used.</td></tr>
+<tr><td>Converted rows from paraloq/json_data_extraction</td><td>151</td><td>The licence is not clear (see section 7).</td></tr>
+</table>
+<p>The gold answer is exact by construction. We sample a record from the schema first, and then write the document from it. We do not use "an LLM extracts the answer" as gold.</p>
+<p>The CuratorKIT pass: 2,994 rows went in, 140 near-duplicates and 22 secrets false-positives were removed, and 2,832 remained. A length limit and a split guard then left 2,760 rows. One row was too long for training, so training used 2,759.</p>
+
+<h3>4.5 A data mistake that we found and fixed</h3>
+<p>Sujal pushed a new version of the dataset. It moved old training rows into <code>val</code> and <code>test</code>. Our first SFT v2 build then had leakage. 88 of 120 <code>val</code> rows and 84 of 120 <code>test</code> rows shared field-name sets with training. A results-verification script found this because ids were missing.</p>
+<p></p>
+<p>We rebuilt the data from the current dataset. We pinned the dataset revision (<code>e26e691b</code>). We added a split guard that removes any training row whose schema or field-name set appears in an evaluation set.</p>
+
+<h3>4.6 Training problems on a T4 GPU</h3>
+<table>
+<tr><th>Problem</th><th>Cause</th><th>Fix</th></tr>
+<tr><td>224 seconds per step</td><td>A T4 reports that it supports bf16, but it emulates it. This is about four times slower.</td><td>Use bf16 only on GPUs with compute capability 8 or higher. Use fp16 on a T4 (57 seconds per step).</td></tr>
+<tr><td>GradScaler crash with fp16</td><td>The trainer converts trainable weights to bf16 inside its constructor.</td><td>A small trainer subclass puts the weights back to fp32 when the optimizer is created.</td></tr>
+<tr><td>Chat template stored as a dictionary</td><td>The base tokenizer stores several templates.</td><td>Use the <code>default</code> entry as one plain string.</td></tr>
+<tr><td>Chat rows turned into plain strings</td><td>AlignTune with <code>task_type="instruction_following"</code> drops the chat template.</td><td>Use <code>task_type="sft"</code>.</td></tr>
+<tr><td>Loss on all tokens</td><td>The template had no markers for the answer.</td><td>Patch the template with <code>{% generation %}</code> markers. The rendered text stays the same. The loss covers only the answer and its two end tokens.</td></tr>
+</table>
+<p>The final SFT v2 run took 346 optimizer steps in 4 hours and 39 minutes on one Kaggle T4. The last training loss was about 0.003.</p>
+
+<h3>4.7 Evaluation of SFT v2 by a teammate</h3>
+<p>James has a GPU. He ran the evaluation with his own copy of the SFT v2 adapter. We recomputed every metric from his raw output files, and all numbers matched. Section 6 gives the results.</p>
+
+<h2 id="current">5. The current approach</h2>
+<p>The plan has two stages. Stage 1 is SFT v2, and it is done. Stage 2 is DPO on top of SFT v2, and it is in progress. SFT alone is a valid submission. DPO must not block the deadline.</p>
+<div class="flow"><span>Curated data</span><b>&rarr;</b><span>SFT v2 (AlignTune)</span><b>&rarr;</b><span>Sample mistakes</span><b>&rarr;</b><span>Build pairs</span><b>&rarr;</b><span>DPO (AlignTune)</span><b>&rarr;</b><span>Evaluate (AuditKIT)</span></div>
+
+<h3>5.1 Why DPO after SFT?</h3>
+<p>The evaluation of SFT v2 showed new weaknesses.</p>
+<p>The model writes <code>null</code> when the document has a value. It makes bracket errors in nested JSON. It writes a list in a string slot. It adds keys that the schema does not have. DPO shows the model these mistakes as "rejected" answers.</p>
+
+<h3>5.2 The success rule, fixed before the run</h3>
+<p>We wrote the rule before we saw any DPO result. This prevents us from choosing a rule that fits the result.</p>
+<ul>
+<li>On <code>test_b</code>: the paired difference in doc_exact and in field_f1 must have an interval above 0.</li>
+<li>On <code>test_c</code>: the interval of field_f1 must be above 0, and doc_exact must not be lower.</li>
+<li>On <code>val</code> and <code>test</code>: no significant drop. parse_ok and schema_valid must not fall more than 1 point.</li>
+</ul>
+<p>If the rule fails, we report that DPO did not help. We do not change the rule.</p>
+
+<h3>5.3 The phases</h3>
+<ol>
+<li><strong>Phase 1: sample the mistakes of SFT v2.</strong> The model answers 2,081 new prompts.
+<ul>
+<li>The prompts use new schemas from JSONSchemaBench (val and test parts). The documents come from our schema-first generator.</li>
+<li>No prompt overlaps training data or any evaluation set.</li>
+<li>The model uses sampling at temperature 0.7. The script never reads the gold answers.</li>
+<li>The script writes a metadata file with the adapter commit and the weights hash.</li>
+<li>The run is resumable, and the prompts are in random order. A run that stops early is still a fair sample.</li>
+</ul></li>
+<li><strong>Build the pairs.</strong> We compare each sample with the gold.
+<ul>
+<li>A wrong answer becomes "rejected". The gold becomes "chosen".</li>
+<li>We add 1,162 rule-based pairs.</li>
+<li>We change the mix to give more weight to over-null, wrong type, broken JSON, and extra keys.</li>
+<li>CuratorKIT removes duplicates.</li>
+</ul></li>
+<li><strong>Merge SFT v2 into the base weights.</strong> AlignTune uses "adapter off" as the DPO reference. With SFT v2 inside the weights, the reference is SFT v2.</li>
+<li><strong>Smoke test.</strong> A short run on a few pairs. The first-step loss must be about 0.693.</li>
+<li><strong>Train DPO.</strong> One epoch. A new LoRA (rank 16) on top of the merged model. The learning rate of 1e-5 is an untuned starting point. We do not tune it on val, test, or FieldBench.</li>
+<li><strong>Evaluate five systems</strong> on the same four splits: base, old SFT, SFT v2, a merged SFT v2 control, and SFT v2 plus DPO. The merged control shows what the merge itself changes, so we do not mistake it for a DPO effect.</li>
+<li><strong>Verify and compare.</strong> A script recomputes all metrics from the raw outputs. Another script applies the success rule.</li>
+</ol>
+
+<h3>5.4 Details that made the DPO setup correct</h3>
+<ul>
+<li>AlignTune turns message lists into plain strings. The system prompt then joins the user text, and the chat template is never used. We render the chat template ourselves into strings. We removed the first BOS token because TRL adds one. We checked that the token ids equal the chat-template ids for 600 of 600 sequences.</li>
+<li>TRL has a default maximum length of 1,024 tokens. Our prompts alone have about 1,200. The answers will be cut off. We set the length to 2,048 and drop pairs that do not fit.</li>
+<li>TRL turns on bf16 by default. We set the precision by hand.</li>
+<li>The reference check: on a tiny test model, the first-step loss was 0.6931 and the reward margin was 0.</li>
+</ul>
+
+<h3>5.5 The time limit</h3>
+<p>Gate 3: the DPO adapter must exist by the evening of Nov 13. If it does not exist, we drop DPO. We then submit SFT v2 with a full evaluation. This is a valid result.</p>
+
+<h2 id="results">6. Results so far</h2>
+<div class="box note">
+<p>These numbers come from the evaluation that James ran with his own SFT v2 adapter. The adapter on Hugging Face (<code>monson2002/tiny-aya-sft-v2-adapter</code>) was trained on Kaggle. It has not been evaluated yet. DPO has no results yet. We do not report a number that we cannot trace to a run.</p>
+</div>
+
+<h3>6.1 Document exact match</h3>
+<div class="tablewrap">
+<table>
+<tr><th>System</th><th><code>val</code></th><th><code>test</code></th><th><code>test_b</code> (new domain)</th></tr>
+<tr><td>Base model</td><td>0.550</td><td>0.517</td><td>0.210</td></tr>
+<tr><td>Early SFT adapter</td><td>0.983</td><td>0.983</td><td>0.010</td></tr>
+<tr><td>SFT v2 (James's adapter)</td><td>0.975</td><td>0.975</td><td>0.246</td></tr>
+</table>
+</div>
+<p>SFT v2 keeps the high in-domain score. It also removes the collapse on the new domain. On <code>test_b</code> it is 3.6 points above the base model. This difference is not statistically significant (interval -0.7 to +8.0, McNemar p = 0.12).</p>
+
+<h3>6.2 Other findings</h3>
+<ul>
+<li><code>test_b</code> field_f1: base 0.794, SFT v2 0.783. This difference is not significant.</li>
+<li><code>test_c</code> field_f1: base 0.448, SFT v2 0.484. This improvement is significant (interval +1.0 to +6.2). doc_exact is 0 for all systems on <code>test_c</code>.</li>
+<li>On <code>test_b</code>, parse_ok fell from 1.000 (base) to 0.957 (SFT v2). This is a significant drop. The cause is broken nested JSON.</li>
+<li>Unnormalized dates: 82 of 100 documents for the base model on <code>test_b</code>. SFT v2 has none.</li>
+<li>Fenced answers: gone.</li>
+<li>New weakness, over-null: 64 per 100 documents on <code>test_b</code>. The base model has 1.4. The nulls concentrate on currency, subtotal, and form type, where the gold value is inferred or normalized.</li>
+</ul>
+
+<div class="box good">
+<p><strong>The honest summary.</strong> SFT v2 fixes the main in-domain failures and does not collapse on a new domain. It does not yet prove a clear gain over the base model on the new domain. DPO is our attempt to fix the remaining weaknesses.</p>
+</div>
+
+<h2 id="limits">7. Limits and open questions</h2>
+<ul>
+<li><strong>Synthetic data.</strong> The training documents are template-like. Real documents with OCR noise, long text, and tables are much harder. <code>test_c</code> shows this: no document is fully correct.</li>
+<li><strong>In-domain scores are optimistic.</strong> About 78 to 81 percent of the answer strings in <code>val</code> and <code>test</code> also appear in the training answers. Judge generalization on FieldBench.</li>
+<li><strong>Two SFT v2 adapters exist.</strong> James's adapter (bf16) was evaluated. The Hugging Face adapter (fp32, from Kaggle) was used as the DPO base. We must evaluate it to know if it matches.</li>
+<li><strong>Licence of the paraloq rows.</strong> The Hub tag says Apache-2.0. The dataset card says "intended for research purposes only". The licence is not resolved. The team must decide: keep the note, confirm the terms, or retrain without these 151 rows.</li>
+<li><strong>Licence of the model.</strong> The base model uses CC-BY-NC-4.0 (non-commercial). Our adapter uses the same licence.</li>
+<li><strong>Speed.</strong> The SFT v2 evaluation took 12.9 seconds for each document on James's machine. The early SFT took 2.2. We do not know the cause. GPU contention is the likely reason.</li>
+<li><strong>Still to do for the submission:</strong> a README with reproduction steps, a write-up, and an abstract under 500 words. We also need a demo Space and a cost comparison with a closed model. The datasets and logs must be public on Hugging Face.</li>
+</ul>
+
+<h2 id="glossary">8. Glossary</h2>
+<div class="tablewrap">
+<table>
+<tr><th>Term</th><th>Meaning</th></tr>
+<tr><td>Adapter</td><td>A small set of extra trained numbers (LoRA) that you add to a frozen model.</td></tr>
+<tr><td>Base model</td><td>The model before any fine-tuning. Here: Tiny Aya Global.</td></tr>
+<tr><td>Chosen / rejected</td><td>The good answer and the bad answer in a DPO pair.</td></tr>
+<tr><td>Constrained decoding</td><td>A method that forces the output to follow a grammar or a schema.</td></tr>
+<tr><td>DPO</td><td>Direct preference optimization. Training on pairs of good and bad answers.</td></tr>
+<tr><td>Gold</td><td>The correct answer for a document. We make it before we write the document.</td></tr>
+<tr><td>Hallucination</td><td>A value in the output that the document does not support.</td></tr>
+<tr><td>Leakage</td><td>The same schema or a near copy appears in two splits.</td></tr>
+<tr><td>LoRA / QLoRA</td><td>Training of small extra matrices. QLoRA does this on a 4-bit model.</td></tr>
+<tr><td>Null</td><td>The JSON value for "not present in the document".</td></tr>
+<tr><td>Over-null</td><td>The model writes null where the document has a value.</td></tr>
+<tr><td>Reference model</td><td>The model that DPO compares against. Here: SFT v2.</td></tr>
+<tr><td>Reward hacking</td><td>The model gets a high score with a trick, and not by doing the task.</td></tr>
+<tr><td>SFT</td><td>Supervised fine-tuning. Training on pairs of prompt and correct answer.</td></tr>
+<tr><td>Token</td><td>A word or a part of a word. The unit that a model reads and writes.</td></tr>
+</table>
+</div>
+
+<footer>
+<p>Files in the repository: <code>eval.py</code> (evaluation and metrics), <code>train_sft.py</code>, <code>train_dpo.py</code>, <code>merge_sft_adapter.py</code>, <code>data/</code> (data builders), <code>docs/DPO_PLAN.md</code> (the full DPO plan), <code>docs/CURATORKIT_USAGE.md</code>, and <code>results/</code> (result tables).</p>
+</footer>
+
+</main>
+</body>
+</html>
