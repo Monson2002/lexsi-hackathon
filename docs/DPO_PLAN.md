@@ -73,7 +73,8 @@ Phases 1 and 2 need the SFT v2 adapter and its evaluation (Gate 0 and Gate 1).
 - **DPO training done** (James, finished Nov 13 19:09 UTC, bf16, seed 42): lr 1e-5, beta 0.1, LoRA r16 alpha32, 1 epoch, 89 optimizer steps. First-step loss 0.6931 and margin 0 (policy equals reference), no NaN, mean loss 0.679 (first 10 steps) to 0.482 (last 10), pair accuracy 0.887 and margin 0.539 over the last 10 steps (training numbers only), all 252 LoRA B matrices non-zero. Adapter SHA-256 `258e1364e6ec6822eedd18fcb152b8fc16f3b0554b5b0fe2ce79edc91c126a8c`. His GPU model and seconds per step were not reported.
 - **Adapter published (private)** as `monson2002/tiny-aya-sft-v2-dpo-adapter` with a model card that says "no evaluation yet".
 - **Evaluation handed to James** as `dpo_eval.zip` (no Kaggle credits left): stage A (`test_b`, `test_c`: `sft_v2_hf` vs `sft_v2_dpo`, same run so the comparison is paired), stage B (`val`, `test`), stage C (merged control). In the evaluation the systems are named `sft_v2_hf` (the HF adapter on the 4-bit base) and `sft_v2_dpo` (the DPO adapter on the merged SFT v2), not `sft_v2` as in section 9. Results: pending.
-- **Deadline extended by 12 hours** by the organisers (Monson, Nov 15). Hard stop for DPO: if stage A has not arrived by about 20:00 UTC on Nov 15, submit SFT v2 alone with its verified results.
+- **DPO evaluated (James, Nov 15; recomputed and VERIFIED here; `results/dpo_eval/`).** Verdict of the success rule: **FAIL** (`test_b` doc_exact and field_f1 and `test_c` field_f1 gains all missing; `test_b` is significantly worse than `sft_v2_hf`: doc_exact -0.031, field_f1 -0.029, parse_ok -0.022). `val`/`test`: no significant change. Control: DPO vs merged SFT v2 (no DPO) is a tie (`test_b` doc_exact +0.005, p = 0.75; field_f1 -0.002; `test_c` field_f1 0.000), so DPO had no measurable effect either way; the drop against `sft_v2_hf` is the cost of merging and re-quantising the weights (`test_b` doc_exact -0.036, p = 0.0007). The `sft_v2_hf` and merged rows were replayed from the AuditKIT cache (0 s in the log); their outputs agree with the Kaggle T4 run on 120/120 `val`/`test` answers and 90% of `test_b`. Decision: ship SFT v2; keep the DPO adapter as a documented negative result.
+- **Deadline extended by 12 hours** by the organisers (Monson, Nov 15). Hard stop for DPO: if stage A had not arrived by about 20:00 UTC on Nov 15, submit SFT v2 alone (it arrived in time; the result is above).
 
 ## 4. Work packages
 
@@ -154,3 +155,4 @@ Also check for collapse: output length, `parse_ok`, `schema_valid`, share of all
 4. System names stay `sft_v2` and `sft_v2_dpo` (assumed, nobody objected).
 5. (Nov 15) The DPO adapter goes to its own Hub repo, separate from the SFT v2 adapter, because it only works on the merged SFT v2 weights.
 6. (Nov 15) Evaluation names: `sft_v2_hf`, `sft_v2_dpo`, `sft_v2_merged` (control).
+7. (Nov 15) After the evaluation: SFT v2 is the submitted model; DPO is reported as no gain.

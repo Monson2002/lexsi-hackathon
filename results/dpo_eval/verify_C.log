@@ -1,0 +1,7 @@
+sft_v2_merged test_b  n=415
+  WARN sft_v2_merged_test_b.json: 1 outputs start a JSON object and never close it (cap too low, or the model did not stop)
+sft_v2_merged test_c  n=143
+
+
+2 result files checked: 0 FAIL, 1 WARN
+VERIFIED

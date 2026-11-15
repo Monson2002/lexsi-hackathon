@@ -6,7 +6,7 @@ A beginner-friendly walkthrough of the theory and the full history is in [`docs/
 
 ## Results so far (status on Nov 15, 2026)
 
-Every number below comes from a result file in this repo (`results/`) or in the model repo [`monson2002/tiny-aya-sft-v2-adapter`](https://huggingface.co/monson2002/tiny-aya-sft-v2-adapter) under `results/`. Nothing is estimated. There are **no evaluation results for DPO yet** (training is done, the evaluation is running; see below).
+Every number below comes from a result file in this repo (`results/`) or in the model repo [`monson2002/tiny-aya-sft-v2-adapter`](https://huggingface.co/monson2002/tiny-aya-sft-v2-adapter) under `results/`. Nothing is estimated. DPO was trained and evaluated: it gave **no gain** over SFT v2 (see the DPO section).
 
 ### How to read the numbers (for beginners)
 - **Splits.** `val` and `test` (also called `test_a` in the oldest run) hold documents like the training ones, so scores there are high and flatter the model. `test_b` is a whole new domain (FieldBench). `test_c` is 143 real receipts. The honest test of "did it learn the general skill" is `test_b` and `test_c`.
@@ -76,16 +76,34 @@ Paired differences against base (same documents, bootstrap 95% interval):
 
 **In plain words:** SFT v2 is much better on documents like its training data and somewhat better on new domains and real receipts. It is not a solved problem on real documents.
 
-### DPO stage (status on Nov 15, 2026): trained, not evaluated yet
+### DPO stage (Nov 15, 2026): trained and evaluated, no gain
 A second training stage, DPO, was added on top of SFT v2 to fix its remaining faults (values turned into `null`, extra keys, invented values, wrong types, malformed JSON). Plan, success rule (fixed before any result) and progress log: [`docs/DPO_PLAN.md`](docs/DPO_PLAN.md).
-- **Preference data:** 1,415 pairs (chosen = the gold JSON, rejected = a worse answer), 1,410 used in training. 247 rejected answers are real mistakes of the SFT v2 model (sampled on 2,081 new prompts; only 277 of its answers were wrong, because those prompts are easy), the rest are made by code, with the mix set from the error counts of the SFT v2 adapter. Statistics: `data/dpo/STATS_dpo.md`.
-- **Training (done, verified from the run files):** LoRA r16 on the merged SFT v2 model, beta 0.1, lr 1e-5, 1 epoch, 89 steps. The first-step loss was 0.6931 (= ln 2, so the policy started equal to the reference), there was no NaN, the loss fell from about 0.68 to 0.48 and pair accuracy on the training pairs reached about 0.89. These are training numbers and do not show better extraction on new documents.
-- **Adapter:** `monson2002/tiny-aya-sft-v2-dpo-adapter` (needs the merged SFT v2 weights; the card explains how to rebuild them).
-- **Evaluation:** pending. It compares `sft_v2_hf` and `sft_v2_dpo` on the same documents in one run (`test_b` and `test_c` first, then `val` and `test`), plus a merged-SFT-v2 control, and applies the success rule. If DPO does not clear the rule, we report that it did not help and submit SFT v2.
+- **Preference data:** 1,415 pairs (chosen = the gold JSON, rejected = a worse answer), 1,410 used. 247 rejected answers are real mistakes of the SFT v2 model (sampled on 2,081 new prompts; only 277 of its answers were wrong, because those prompts are easy); the rest are made by code, with the mix set from the error counts of the SFT v2 adapter. Statistics: `data/dpo/STATS_dpo.md`.
+- **Training (verified from the run files):** LoRA r16 on the merged SFT v2 model, beta 0.1, lr 1e-5, 1 epoch, 89 steps. First-step loss 0.6931 (= ln 2, policy equal to reference), no NaN, loss 0.68 to 0.48, training pair accuracy about 0.89. Adapter: [`monson2002/tiny-aya-sft-v2-dpo-adapter`](https://huggingface.co/monson2002/tiny-aya-sft-v2-dpo-adapter) (needs the merged SFT v2 weights).
+- **Evaluation** (teammate's GPU, greedy, 1280 tokens, one machine and precision for all rows; all result files recomputed and VERIFIED here; files in `results/dpo_eval/`). `sft_v2_hf` = the SFT v2 adapter on the 4-bit base. "merged" = SFT v2 merged into the weights without DPO (the control). "DPO" = the DPO adapter on the merged model.
+
+| split | system | parse_ok | schema_valid | field_f1 | doc_exact | null_acc |
+|---|---|---|---|---|---|---|
+| test_b | sft_v2_hf | 0.976 | 0.858 | 0.804 | 0.258 | 0.866 |
+| test_b | merged (no DPO) | 0.954 | 0.843 | 0.777 | 0.222 | 0.845 |
+| test_b | DPO | 0.954 | 0.851 | 0.774 | 0.227 | 0.838 |
+| test_c | sft_v2_hf | 0.993 | 0.972 | 0.496 | 0.000 | 0.962 |
+| test_c | merged (no DPO) | 0.993 | 0.965 | 0.491 | 0.000 | 0.956 |
+| test_c | DPO | 1.000 | 0.951 | 0.491 | 0.000 | 0.958 |
+| val | sft_v2_hf | 1.000 | 1.000 | 0.998 | 0.975 | 1.000 |
+| val | DPO | 1.000 | 1.000 | 0.997 | 0.967 | 1.000 |
+| test | sft_v2_hf | 1.000 | 1.000 | 0.997 | 0.958 | 1.000 |
+| test | DPO | 1.000 | 1.000 | 0.998 | 0.967 | 1.000 |
+
+- **The success rule fails.** On `test_b`, DPO against `sft_v2_hf` is *worse*: doc_exact -0.031 [-0.055, -0.007], field_f1 -0.029 [-0.045, -0.015], parse_ok -0.022 (all significant). On `test_c` field_f1 is -0.005 (not significant). On `val` and `test` there is no significant change.
+- **DPO itself did nothing measurable.** Against the merged control (its real starting point), `test_b` doc_exact is +0.005 [-0.010, +0.019] (McNemar p = 0.75), field_f1 -0.002 [-0.015, +0.011]; `test_c` field_f1 is 0.000. DPO changed 23% of the `test_b` answers against the merged model, with no net gain or loss.
+- **Merging costs accuracy.** The merged model is worse than the adapter on the 4-bit base: `test_b` doc_exact -0.036 [-0.058, -0.017] (McNemar p = 0.0007), field_f1 -0.027 [-0.043, -0.013]. This is why the DPO drop against `sft_v2_hf` is not a DPO effect. The merged weights are quantised to 4 bit again when loaded, which is not bit-identical to the adapter on the 4-bit base.
+- **Decision:** the submitted model is the SFT v2 adapter (`monson2002/tiny-aya-sft-v2-adapter`). The DPO adapter is kept as a documented negative result.
+- **Caveats:** the `sft_v2_hf` rows (all splits) and the merged control rows were replayed from AuditKIT's cache of an earlier run on the same machine (0 s in the log), not recomputed; their outputs agree with the independent Kaggle T4 run on 120 of 120 `val` and `test` answers and on 90% of `test_b` answers. The DPO rows were computed fresh. One run, one seed, one learning rate (1e-5, untuned), only 247 on-policy pairs on easy prompts: this shows that this DPO recipe did not help, not that DPO cannot help.
 
 ### What we know and do not know
-- **Known:** SFT v2 fixed the main failure of the early SFT (collapse on a new domain). Date normalisation, markdown fences and missing-field handling improved a lot. The GRPO adapter did nothing measurable.
-- **Not known:** whether DPO helps (trained, evaluation pending). Why the SFT v2 evaluation was slow (0.04 documents per second on the T4, and 12.9 seconds per document on the teammate's GPU).
+- **Known:** SFT v2 fixed the main failure of the early SFT (collapse on a new domain). Date normalisation, markdown fences and missing-field handling improved a lot. The GRPO adapter did nothing measurable. DPO on top of SFT v2 did nothing measurable either, and merging SFT v2 into the weights costs about 3 points on `test_b`.
+- **Not known:** why DPO did not help (untested guesses: too few and too easy on-policy pairs, an untuned learning rate, one epoch). Why the SFT v2 evaluation was slow (0.04 documents per second on the T4, and 12.9 seconds per document on the teammate's GPU).
 - **Remaining weaknesses seen in the error counts of run B:** the model writes `null` where the document has a value (64 of 100 documents on `test_b`, against 1.4 for base), makes bracket errors in nested JSON, and puts a list into a string field.
 - **Open licence question:** 151 of the 2,760 training rows come from `paraloq/json_data_extraction`, whose licence terms are unclear. The team has not decided yet.
 
