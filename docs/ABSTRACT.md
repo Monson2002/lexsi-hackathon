@@ -12,4 +12,4 @@ We fine-tune Tiny Aya Global (3.35B parameters) to read a document and a JSON Sc
 
 **Limits.** All results come from one run and one seed. Training documents are synthetic and template-like. We did not evaluate constrained decoding, and we did not run a closed-model baseline or a cost comparison. The adapter is slow on a T4 (about 0.04 documents per second). Part of the training data has an unresolved licence note, and the model is non-commercial like its base.
 
-Code, evaluation scripts and verified result tables are on GitHub, and the adapters are on Hugging Face. The curated dataset is not yet published, because of the open licence question.
+Code, evaluation scripts and verified result tables are on GitHub, and the adapters are on Hugging Face. A demo is at ghostinthegradient.vercel.app. The curated dataset is not yet published, because of the open licence question.

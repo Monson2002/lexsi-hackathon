@@ -195,6 +195,7 @@ Versions: AlignTune 0.1.33 (TRL 1.7.1, PEFT 0.21.2, transformers 5.20.2), AuditK
 - Adapter (the submitted model): https://huggingface.co/monson2002/tiny-aya-sft-v2-adapter
 - DPO adapter (negative result): https://huggingface.co/monson2002/tiny-aya-sft-v2-dpo-adapter
 - Code and results: https://github.com/Monson2002/lexsi-hackathon
+- Demo: https://ghostinthegradient.vercel.app/ (a workbench for the extraction task; the page states a T4 GPU that sleeps after 15 minutes, so the first request can be slow)
 - Base model: https://huggingface.co/CohereLabs/tiny-aya-global
 
 Data statement: all data is synthetic or public. No real personal data was used. The `test_c` receipts are real public documents from the FieldBench set.
