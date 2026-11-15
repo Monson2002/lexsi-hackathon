@@ -22,6 +22,6 @@ if grep -q "WARNING: the first-step loss" "$OUT/train.log"; then echo "SMOKE TES
 grep -E "first logged step|trainable dtypes at optimizer creation" "$OUT/train.log" || true
 
 echo "== 4/4 score the smoke adapter on 10 val documents, on top of the merged model (checks it loads in eval.py and the output parses)"
-python eval.py --dataset sujalgawas/aya-json-sft-dataset --splits val --limit 10 --systems "dpo_smoke=$OUT/train/adapter@merged_sft_v2" --out "$OUT/eval"
+python eval.py --data-dir . --splits val --limit 10 --systems "dpo_smoke=$OUT/train/adapter@merged_sft_v2" --out "$OUT/eval"
 cat "$OUT/eval/results.md"
 echo "smoke test passed: note seconds per step in the log above"

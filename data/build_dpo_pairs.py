@@ -39,8 +39,12 @@ SYSTEM_PROMPT = (
 )
 MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
 # Starting mix of rule-based kinds. Replace with the SFT v2 failure counts (error_taxonomy.py) via --weights once they exist.
-DEFAULT_WEIGHTS = {"date_unnormalised": 0.18, "missing_key": 0.15, "invented_value": 0.13, "over_null": 0.10, "wrong_value": 0.10, "extra_key": 0.08,
-                   "schema_echo": 0.08, "enum_violation": 0.08, "wrong_type": 0.04, "truncated": 0.03, "fenced": 0.03}
+# Mix of rule-based failure kinds. v2 (Nov 13): set from the error counts of the HF SFT v2 adapter on test_b / test_c (error_taxonomy.py): that model no longer
+# leaves dates unnormalised or fences answers (0 documents), and its main faults are values turned into null (58 and 108 per 100 documents), extra keys,
+# invented or wrong values, wrong types and some malformed JSON. v1 weights were date 0.18, missing 0.15, invented 0.13, over_null 0.10, wrong_value 0.10, extra 0.08,
+# echo 0.08, enum 0.08, type 0.04, truncated 0.03, fenced 0.03.
+DEFAULT_WEIGHTS = {"over_null": 0.24, "wrong_type": 0.12, "missing_key": 0.12, "extra_key": 0.12, "wrong_value": 0.12, "invented_value": 0.10,
+                   "truncated": 0.08, "enum_violation": 0.03, "date_unnormalised": 0.03, "schema_echo": 0.02, "fenced": 0.02}
 
 
 def load_eval_module():
