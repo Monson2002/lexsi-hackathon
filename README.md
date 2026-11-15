@@ -4,9 +4,9 @@ Fine-tuning a small Aya model (Tiny Aya Global, 3.35B) for **schema-conditioned 
 Lexsi Labs hackathon, Track 1 (fine-tuning and data curation). Toolkits chained: CuratorKIT (data), AlignTune (training), AuditKIT (evaluation). Deadline: Nov 14, 2026, end of day (AoE).
 A beginner-friendly walkthrough of the theory and the full history is in [`docs/PROJECT_EXPLAINER.html`](docs/PROJECT_EXPLAINER.html). The DPO plan is in [`docs/DPO_PLAN.md`](docs/DPO_PLAN.md).
 
-## Results so far (status on Nov 13, 2026)
+## Results so far (status on Nov 15, 2026)
 
-Every number below comes from a result file in this repo (`results/`) or in the model repo [`monson2002/tiny-aya-sft-v2-adapter`](https://huggingface.co/monson2002/tiny-aya-sft-v2-adapter) under `results/`. Nothing is estimated. Nothing exists yet for DPO.
+Every number below comes from a result file in this repo (`results/`) or in the model repo [`monson2002/tiny-aya-sft-v2-adapter`](https://huggingface.co/monson2002/tiny-aya-sft-v2-adapter) under `results/`. Nothing is estimated. There are **no evaluation results for DPO yet** (training is done, the evaluation is running; see below).
 
 ### How to read the numbers (for beginners)
 - **Splits.** `val` and `test` (also called `test_a` in the oldest run) hold documents like the training ones, so scores there are high and flatter the model. `test_b` is a whole new domain (FieldBench). `test_c` is 143 real receipts. The honest test of "did it learn the general skill" is `test_b` and `test_c`.
@@ -76,9 +76,16 @@ Paired differences against base (same documents, bootstrap 95% interval):
 
 **In plain words:** SFT v2 is much better on documents like its training data and somewhat better on new domains and real receipts. It is not a solved problem on real documents.
 
+### DPO stage (status on Nov 15, 2026): trained, not evaluated yet
+A second training stage, DPO, was added on top of SFT v2 to fix its remaining faults (values turned into `null`, extra keys, invented values, wrong types, malformed JSON). Plan, success rule (fixed before any result) and progress log: [`docs/DPO_PLAN.md`](docs/DPO_PLAN.md).
+- **Preference data:** 1,415 pairs (chosen = the gold JSON, rejected = a worse answer), 1,410 used in training. 247 rejected answers are real mistakes of the SFT v2 model (sampled on 2,081 new prompts; only 277 of its answers were wrong, because those prompts are easy), the rest are made by code, with the mix set from the error counts of the SFT v2 adapter. Statistics: `data/dpo/STATS_dpo.md`.
+- **Training (done, verified from the run files):** LoRA r16 on the merged SFT v2 model, beta 0.1, lr 1e-5, 1 epoch, 89 steps. The first-step loss was 0.6931 (= ln 2, so the policy started equal to the reference), there was no NaN, the loss fell from about 0.68 to 0.48 and pair accuracy on the training pairs reached about 0.89. These are training numbers and do not show better extraction on new documents.
+- **Adapter:** `monson2002/tiny-aya-sft-v2-dpo-adapter` (needs the merged SFT v2 weights; the card explains how to rebuild them).
+- **Evaluation:** pending. It compares `sft_v2_hf` and `sft_v2_dpo` on the same documents in one run (`test_b` and `test_c` first, then `val` and `test`), plus a merged-SFT-v2 control, and applies the success rule. If DPO does not clear the rule, we report that it did not help and submit SFT v2.
+
 ### What we know and do not know
 - **Known:** SFT v2 fixed the main failure of the early SFT (collapse on a new domain). Date normalisation, markdown fences and missing-field handling improved a lot. The GRPO adapter did nothing measurable.
-- **Not known:** whether DPO helps (not run yet). Why the SFT v2 evaluation was slow (0.04 documents per second on the T4, and 12.9 seconds per document on the teammate's GPU).
+- **Not known:** whether DPO helps (trained, evaluation pending). Why the SFT v2 evaluation was slow (0.04 documents per second on the T4, and 12.9 seconds per document on the teammate's GPU).
 - **Remaining weaknesses seen in the error counts of run B:** the model writes `null` where the document has a value (64 of 100 documents on `test_b`, against 1.4 for base), makes bracket errors in nested JSON, and puts a list into a string field.
 - **Open licence question:** 151 of the 2,760 training rows come from `paraloq/json_data_extraction`, whose licence terms are unclear. The team has not decided yet.
 

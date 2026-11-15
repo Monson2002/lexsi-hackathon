@@ -64,6 +64,17 @@ Findings that changed the design (each verified in code or on the real tokenizer
 3. *Train and evaluate:* James merges, runs `smoke_test_dpo.sh`, then trains and evaluates `base`, `sft`, `sft_v2`, `sft_v2_merged`, `sft_v2_dpo`.
 Phases 1 and 2 need the SFT v2 adapter and its evaluation (Gate 0 and Gate 1).
 
+## 3c. Progress log, 2026-11-13 to 11-15 (what actually happened; results of the DPO evaluation are not in yet)
+
+- **HF SFT v2 adapter evaluated** (Kaggle T4, Nov 13, verified): base vs adapter on `val`, `test`, `test_b`, `test_c`; see the README. On `test_b` doc_exact +0.041 (interval includes 0), field_f1 +0.020 (significant); on `test_c` field_f1 +0.047 (significant), doc_exact 0 for every system. Gate 1 (is there room for DPO to help) was therefore a conditional yes: SFT v2 is not close to ceiling on new domains.
+- **Rule-based pair mix v2** (`DEFAULT_WEIGHTS` in `data/build_dpo_pairs.py`): reset from the error counts of the HF adapter (`error_taxonomy.py`): unnormalised dates and fences are gone (0 documents), the main faults are values turned into null (58 and 108 per 100 documents on `test_b` and `test_c`), extra keys, invented values, wrong types and some malformed JSON. The old weights are in the comment above `DEFAULT_WEIGHTS`. Capped at 1,200 rule-based pairs (the first rebuild without the cap gave 4,070; it would have made training about 3.5 times longer).
+- **Phase 1 (on-policy sampling) done by James** on his GPU: all 2,081 prompts answered; the adapter commit and weights hash in the `.meta.json` match the pinned HF adapter. Only 277 answers (13%) were wrong; 1,804 were already fully correct. Wrong ones: 165 wrong value or type, 30 null where gold has a value, 21 missing key, 21 extra key, 10 unparseable. Caveat: these prompts are easy, so the on-policy mistakes may not resemble the mistakes on new domains.
+- **Pairs:** 1,415 after CuratorKIT and the length cap (247 on-policy + 1,168 rule-based; `data/dpo/STATS_dpo.md`). `train_dpo.py` used 1,410 (5 over 2,048 tokens).
+- **DPO training done** (James, finished Nov 13 19:09 UTC, bf16, seed 42): lr 1e-5, beta 0.1, LoRA r16 alpha32, 1 epoch, 89 optimizer steps. First-step loss 0.6931 and margin 0 (policy equals reference), no NaN, mean loss 0.679 (first 10 steps) to 0.482 (last 10), pair accuracy 0.887 and margin 0.539 over the last 10 steps (training numbers only), all 252 LoRA B matrices non-zero. Adapter SHA-256 `258e1364e6ec6822eedd18fcb152b8fc16f3b0554b5b0fe2ce79edc91c126a8c`. His GPU model and seconds per step were not reported.
+- **Adapter published (private)** as `monson2002/tiny-aya-sft-v2-dpo-adapter` with a model card that says "no evaluation yet".
+- **Evaluation handed to James** as `dpo_eval.zip` (no Kaggle credits left): stage A (`test_b`, `test_c`: `sft_v2_hf` vs `sft_v2_dpo`, same run so the comparison is paired), stage B (`val`, `test`), stage C (merged control). In the evaluation the systems are named `sft_v2_hf` (the HF adapter on the 4-bit base) and `sft_v2_dpo` (the DPO adapter on the merged SFT v2), not `sft_v2` as in section 9. Results: pending.
+- **Deadline extended by 12 hours** by the organisers (Monson, Nov 15). Hard stop for DPO: if stage A has not arrived by about 20:00 UTC on Nov 15, submit SFT v2 alone with its verified results.
+
 ## 4. Work packages
 
 **WP0. SFT v2 failure analysis (me, when SFT v2 results arrive, about 1 hour).**
@@ -141,3 +152,5 @@ Also check for collapse: output length, `parse_ok`, `schema_valid`, share of all
 2. On-policy sampling (WP2b) is **in**; it costs about one extra GPU pass.
 3. The success rule in section 1 is **accepted as written**.
 4. System names stay `sft_v2` and `sft_v2_dpo` (assumed, nobody objected).
+5. (Nov 15) The DPO adapter goes to its own Hub repo, separate from the SFT v2 adapter, because it only works on the merged SFT v2 weights.
+6. (Nov 15) Evaluation names: `sft_v2_hf`, `sft_v2_dpo`, `sft_v2_merged` (control).
