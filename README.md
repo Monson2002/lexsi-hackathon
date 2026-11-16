@@ -10,7 +10,7 @@
 
 - **Task:** give the model a document and a JSON Schema. It must return one JSON object that follows the schema, with values taken from the document and `null` for anything missing.
 - **What worked:** a QLoRA adapter trained on 2,760 carefully built examples. It raises document exact match from 0.608 to 0.975 on in-domain validation and from 0.533 to 0.958 on in-domain test documents.
-- **What is still hard:** a new domain and real receipts. On a new domain, document exact match goes from 0.222 to 0.263, and that gain is **not** statistically significant. On 143 real receipts, no system, ours or the base model, gets a single receipt fully correct.
+- **What is still hard:** a new domain and real documents (mostly receipts). On a new domain, document exact match goes from 0.222 to 0.263, and that gain is **not** statistically significant. On 143 real documents, mostly receipts, no system, ours or the base model, gets a single document fully correct.
 - **What did not work:** a GRPO adapter (no change), DPO on top of our adapter (no measurable effect), and merging the adapter into the base weights (a significant loss, about 3.6 points of document exact match on the new domain).
 - **Everything is open:** adapters, code, verified result tables and a demo. Links are at the end.
 
@@ -25,7 +25,7 @@ So the model must follow four rules:
 3. A missing value is `null`.
 4. The model changes a value (for example a date) only when the schema asks for it.
 
-We test three things the model never saw in training: new documents with known schemas (`val`), new schemas (`test`), and a whole new domain (FieldBench `test_b`). A small set of real receipts (`test_c`) checks real-world text.
+We test three things the model never saw in training: new documents with known schemas (`val`), new schemas (`test`), and a whole new domain (FieldBench `test_b`: 415 synthetic documents from insurance, contracts, legal and SEC filings). A small set of real documents (mostly receipts) (`test_c`) checks real-world text.
 
 ## 2. Our first lesson: 0.983 can mean nothing
 
@@ -91,16 +91,16 @@ All rows are from one Kaggle T4 run, greedy decoding, 1,280 new tokens.
 | `val` | **adapter** | 1.000 | 0.998 | **0.975** | 1.000 |
 | `test` (120) | base | 1.000 | 0.962 | 0.533 | 0.939 |
 | `test` | **adapter** | 1.000 | 0.997 | **0.958** | 1.000 |
-| `test_b`, new domain (415) | base | 1.000 | 0.795 | 0.222 | 0.838 |
+| `test_b`, new domain (415 synthetic) | base | 1.000 | 0.795 | 0.222 | 0.838 |
 | `test_b` | **adapter** | 0.983 | 0.815 | 0.263 | 0.873 |
-| `test_c`, real receipts (143) | base | 0.993 | 0.447 | 0.000 | 0.920 |
+| `test_c`, 143 real documents, mostly receipts | base | 0.993 | 0.447 | 0.000 | 0.920 |
 | `test_c` | **adapter** | 0.993 | 0.494 | 0.000 | 0.962 |
 
 What the paired tests say:
 
 - In domain, the gains are large and significant (+0.367 and +0.425 document exact match).
 - On the new domain, field F1 (+0.020) and null accuracy (+0.036) improve significantly. **Document exact match (+0.041, interval -0.002 to +0.084) does not.** The parse rate also fell from 1.000 to 0.983, because of broken JSON on a few documents.
-- On real receipts, field F1 improves (+0.047, significant), but **document exact match is 0.000 for every system**.
+- On real documents (mostly receipts), field F1 improves (+0.047, significant), but **document exact match is 0.000 for every system**.
 
 The adapter fixed the failures that were easy to fix: date normalization, markdown fences around the JSON, and missing-field handling. It did not make the model good at messy, real documents. We think that is the honest summary.
 
@@ -110,7 +110,7 @@ The adapter fixed the failures that were easy to fix: date normalization, markdo
 An earlier GRPO adapter matched the base model within about one point on every metric and split. We did not find out why.
 
 ### DPO, and the control that saved us
-SFT left new faults. The model now turns real values into `null` (58 and 108 times per 100 documents on the new domain and on receipts, against 1.2 and 0.7 for the base model), adds extra keys, invents values, and sometimes writes broken JSON.
+SFT left new faults. The model now turns real values into `null` (58 and 108 times per 100 documents on the new domain and on `test_c`, against 1.2 and 0.7 for the base model), adds extra keys, invents values, and sometimes writes broken JSON.
 
 So we tried DPO on top of the adapter. We built 1,415 preference pairs: the gold JSON as the good answer and a worse answer as the bad one. 247 of the bad answers were the model's own mistakes, sampled on 2,081 new prompts. The rest came from rules that corrupt the gold: a value turned into `null`, an extra key, a wrong type, truncated JSON. We included both directions of the null error, so the model could not learn to "write more nulls".
 
@@ -137,7 +137,8 @@ One caveat on the DPO test: it is one run, one seed, an untuned learning rate (1
 
 ## 8. Limits we want you to see
 
-- **Real documents are not solved.** Document exact match on receipts is 0.000, and field F1 is below 0.5.
+- **`test_b` is synthetic.** FieldBench's own datasheet warns that synthetic documents overestimate accuracy, so read the `test_b` numbers as a best case for a new domain.
+- **Real documents are not solved.** Document exact match on `test_c` is 0.000, and field F1 is below 0.5.
 - **The new-domain gain is not significant** for document exact match, and the parse rate dropped.
 - **One run, one seed.** We have no spread across seeds.
 - **Not done:** base and adapter with constrained decoding, and a closed-model baseline with a cost comparison. We have no verified price source, so we do not quote a cost.
@@ -195,7 +196,7 @@ Versions: AlignTune 0.1.33 (TRL 1.7.1, PEFT 0.21.2, transformers 5.20.2), AuditK
 Every number below comes from a result file in this repo (`results/`) or in the model repo [`monson2002/tiny-aya-sft-v2-adapter`](https://huggingface.co/monson2002/tiny-aya-sft-v2-adapter) under `results/`. Nothing is estimated. DPO was trained and evaluated: it gave **no gain** over SFT v2 (see the DPO section).
 
 ### How to read the numbers (for beginners)
-- **Splits.** `val` and `test` (also called `test_a` in the oldest run) hold documents like the training ones, so scores there are high and flatter the model. `test_b` is a whole new domain (FieldBench). `test_c` is 143 real receipts. The honest test of "did it learn the general skill" is `test_b` and `test_c`.
+- **Splits.** `val` and `test` (also called `test_a` in the oldest run) hold documents like the training ones, so scores there are high and flatter the model. `test_b` is a whole new domain (415 synthetic documents from FieldBench). `test_c` is 143 real documents, mostly receipts. The honest test of "did it learn the general skill" is `test_b` and `test_c`.
 - **doc_exact:** the share of documents where every field is right. This is the strictest number. **field_f1:** a score per field value, so partly right counts. **parse_ok:** the answer is valid JSON. **schema_valid:** valid JSON that follows the schema. **null_acc:** missing values were answered with `null`. **hallucination_rate:** values that the document does not support.
 - **Schema validity is not our headline.** A decoding trick (constrained decoding) makes any model write valid JSON, so validity says little about correct values.
 - **Same run only.** Compare systems only inside one run. The base model scores a little differently on different machines (see runs C and D).
@@ -258,9 +259,9 @@ This is the adapter that is public and that the DPO stage builds on.
 Paired differences against base (same documents, bootstrap 95% interval):
 - `val` and `test`: doc_exact +0.367 and +0.425, significant.
 - `test_b`: field_f1 +0.020 [+0.002, +0.038] and null_acc +0.036 are significant. doc_exact +0.041 [-0.002, +0.084] is **not** significant (McNemar p = 0.075). parse_ok fell from 1.000 to 0.983, a significant drop.
-- `test_c`: field_f1 +0.047 [+0.022, +0.073] is significant. No system gets a single receipt fully correct.
+- `test_c`: field_f1 +0.047 [+0.022, +0.073] is significant. No system gets a single document fully correct.
 
-**In plain words:** SFT v2 is much better on documents like its training data and somewhat better on new domains and real receipts. It is not a solved problem on real documents.
+**In plain words:** SFT v2 is much better on documents like its training data and somewhat better on new domains and real documents (mostly receipts). It is not a solved problem on real documents.
 
 ### DPO stage (Nov 15, 2026): trained and evaluated, no gain
 A second training stage, DPO, was added on top of SFT v2 to fix its remaining faults (values turned into `null`, extra keys, invented values, wrong types, malformed JSON). Plan, success rule (fixed before any result) and progress log: [`docs/DPO_PLAN.md`](docs/DPO_PLAN.md).
