@@ -286,7 +286,8 @@ We have no basis to forecast numbers, so we state targets, not forecasts. On `te
 
 ## Artifacts
 
-- **HF datasets collection:** **not published yet.** The curated dataset (`train_v2.jsonl`, 2,760 rows) and the raw generation logs stay local until the licence of the 151 paraloq rows is resolved. Planned: publish the dataset without those rows, with a card that says the trained model also saw them.
+- **HF datasets collection:** https://huggingface.co/collections/monson2002/lexsi-hackathon-datasets. It holds four datasets by a teammate (`sujalgawas`): `aya-json-sft-dataset` (the upstream dataset that 1,433 of our 2,760 training rows derive from, revision `e26e691b`), `aya-json-sftV1-dataset`, `tiny-aya-schema-extraction-testrun`, and `fieldbench-aya-eval-results`.
+  - **Not in it yet:** our own curated SFT v2 training set (`train_v2.jsonl`, 2,760 rows), the 1,415 DPO preference pairs, the 2,081 on-policy samples, and the raw generation logs. They stay local until the licence of the 151 paraloq rows is resolved. Planned: publish the training set without those rows, with a card that says the trained model also saw them. The verified result tables and raw model outputs are in `results/` here and in the `results/` folders of the two model repos.
 - **HF models collection:** https://huggingface.co/collections/monson2002/lexsi-hackathon
   - SFT v2 adapter (the submitted model): https://huggingface.co/monson2002/tiny-aya-sft-v2-adapter
   - DPO adapter (negative result): https://huggingface.co/monson2002/tiny-aya-sft-v2-dpo-adapter
