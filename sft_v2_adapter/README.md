@@ -79,7 +79,7 @@ Last logged training loss about 0.003 and mean token accuracy 0.9987 **on the tr
 Files in this repo: `adapter_model.safetensors`, `adapter_config.json`, `train_config.json`, `lexsi_provenance.json` (AlignTune provenance record), `train_log.txt`.
 
 ## Evaluation
-Base model against this adapter, on four splits, with AuditKIT 1.1.6: Sujal's `val` (120 documents) and `test` (120), and FieldBench `test_b` (415, a domain not in training) and `test_c` (143 real receipts). One Kaggle T4, fp16, 4-bit base, greedy decoding, 1280 new tokens, dataset revision pinned (`sujalgawas/aya-json-sft-dataset @ e26e691b`). All metrics were recomputed from the raw outputs by a verification script (8 of 8 result files match, all 252 LoRA B matrices non-zero). Raw outputs and logs: `results/` in this repo.
+Base model against this adapter, on four splits, with AuditKIT 1.1.6: Sujal's `val` (120 documents) and `test` (120), and FieldBench `test_b` (415 synthetic documents, a domain not in training) and `test_c` (143 real documents, mostly receipts). One Kaggle T4, fp16, 4-bit base, greedy decoding, 1280 new tokens, dataset revision pinned (`sujalgawas/aya-json-sft-dataset @ e26e691b`). All metrics were recomputed from the raw outputs by a verification script (8 of 8 result files match, all 252 LoRA B matrices non-zero). Raw outputs and logs: `results/` in this repo.
 
 | split | system | parse_ok | schema_valid | field_f1 | doc_exact | null_acc | hallucination_rate (adjusted) |
 |---|---|---|---|---|---|---|---|
@@ -95,7 +95,7 @@ Base model against this adapter, on four splits, with AuditKIT 1.1.6: Sujal's `v
 Paired differences (same documents, bootstrap 95% interval; "significant" means the interval excludes 0):
 - `val` and `test`: document exact match +0.367 and +0.425, significant.
 - `test_b` (new domain): field F1 +0.020 [+0.002, +0.038] and null accuracy +0.036 are significant. Document exact match +0.041 [-0.002, +0.084] is **not** significant (McNemar p = 0.075). The parse rate fell from 1.000 to 0.983, a significant drop (broken JSON on some documents).
-- `test_c` (real receipts): field F1 +0.047 [+0.022, +0.073] is significant. **No system gets any document fully correct** (document exact match 0.000 for both).
+- `test_c` (real documents, mostly receipts): field F1 +0.047 [+0.022, +0.073] is significant. **No system gets any document fully correct** (document exact match 0.000 for both).
 - The unadjusted hallucination rate on `test_b` is higher than the base model's (0.253 against 0.201); the adjusted rate is not different. We did not investigate this further.
 
 Caveats:
