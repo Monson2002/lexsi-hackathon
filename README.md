@@ -340,7 +340,7 @@ No part of the submitted work was done before or outside the hackathon. External
 ## Teammates tagged
 - Monson Reji Verghese, Hugging Face `monson2002`
 - Sujal Gawas, Hugging Face `sujalgawas`
-- James, Hugging Face handle: *to be added*
+- James, Hugging Face `percept4on`
 
 ## Author contributions (to be confirmed by the team)
 - Sujal: the original dataset and notebook, and the early SFT and GRPO adapters.
